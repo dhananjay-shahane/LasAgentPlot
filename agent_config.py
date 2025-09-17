@@ -7,13 +7,14 @@ Agent Configuration File for LAS File Processing CLI
 LLM_CONFIG = {
     "model": "llama3.2:1b",
     "temperature": 0.3,
-    "base_url": "http://localhost:11434",
+    "base_url": "https://4969d13b9a21.ngrok-free.app",
     "timeout": 120
 }
 
 # Agent Configuration
 AGENT_CONFIG = {
-    "handle_parsing_errors": "Check your output and make sure it conforms to the format instructions!",
+    "handle_parsing_errors":
+    "Check your output and make sure it conforms to the format instructions!",
     "verbose": True,
     "max_iterations": 3,
     "react_prompt": "hwchase17/react"
