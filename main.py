@@ -321,12 +321,16 @@ def mcp_rescue_las(filename: str) -> str:
 
 def initialize_agent():
     """Initialize the LangChain agent with tools."""
-    llm = ChatOllama(
-        model=LLM_CONFIG["model"],
-        temperature=LLM_CONFIG["temperature"],
-        base_url=LLM_CONFIG["base_url"],
-        timeout=LLM_CONFIG["timeout"]
-    )
+    try:
+        llm = ChatOllama(
+            model=LLM_CONFIG["model"],
+            temperature=LLM_CONFIG["temperature"],
+            base_url=LLM_CONFIG["base_url"],
+            timeout=LLM_CONFIG["timeout"]
+        )
+    except Exception as e:
+        logger.error(f"Failed to initialize Ollama LLM: {str(e)}")
+        raise Exception("Ollama server is not available. Please install and start Ollama locally, or use an alternative LLM integration.")
 
     tools = [
         las_create_plot, 
@@ -365,7 +369,15 @@ def main():
         print("Please add some sample LAS files to test the functionality.")
     
     # Initialize the agent - this will raise an exception if Ollama is not available
-    agent_executor = initialize_agent()
+    try:
+        agent_executor = initialize_agent()
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        print("\nRunning in standalone mode without LLM agent...")
+        print("You can still use the plot generation script directly:")
+        print("Example: python scripts/plot_generator.py sample_well.las depth GR")
+        print("Example: python scripts/plot_generator.py sample_well.las gamma")
+        return
     
     print("\n" + "="*60)
     print("LAS File Agent with MCP Tools is ready!")

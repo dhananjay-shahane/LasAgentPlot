@@ -22,9 +22,9 @@ args = "LAS CLI Agent"
 name = "LAS CLI Agent"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python main.py"
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "uv run python main.py"
