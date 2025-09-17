@@ -41,10 +41,12 @@ class LASPlotInput(BaseModel):
 class LASInfoInput(BaseModel):
     filename: str = Field(description="LAS file name in data folder")
 
+
 # -----------------------------
-# Core Functions (without decorators)
+# Tool: Create LAS curve plot
 # -----------------------------
-def _las_create_plot(filename: str, curve_name: str) -> str:
+@tool(args_schema=LASPlotInput)
+def las_create_plot(filename: str, curve_name: str) -> str:
     """Create a plot image for the given curve from a LAS file in data folder."""
     file_path = os.path.join(PATHS["data_folder"], filename)
     if not os.path.isfile(file_path):
@@ -57,7 +59,7 @@ def _las_create_plot(filename: str, curve_name: str) -> str:
             return f"Error: Curve '{curve_name}' not found in '{filename}'. Available curves: {', '.join(available_curves)}"
 
         curve_data = las[curve_name]
-        depth = las['DEPT'] if 'DEPT' in las else las.index  # Use DEPT curve or index as depth
+        depth = las['DEPT'] if 'DEPT' in las else las.index
 
         # Handle NaN values safely
         mask = ~np.isnan(curve_data)
@@ -83,15 +85,12 @@ def _las_create_plot(filename: str, curve_name: str) -> str:
         logger.error(f"Failed to create plot: {str(e)}")
         return f"Error: Failed to create plot: {str(e)}"
 
-# -----------------------------
-# Tool: Create LAS curve plot
-# -----------------------------
-@tool(args_schema=LASPlotInput)
-def las_create_plot(filename: str, curve_name: str) -> str:
-    """Create a plot image for the given curve from a LAS file in data folder."""
-    return _las_create_plot(filename, curve_name)
 
-def _list_las_files() -> str:
+# -----------------------------
+# Tool: List LAS files
+# -----------------------------
+@tool
+def list_las_files() -> str:
     """List LAS files available in the data folder."""
     try:
         files = [f for f in os.listdir(PATHS["data_folder"]) if f.endswith(".las")]
@@ -101,15 +100,12 @@ def _list_las_files() -> str:
     except Exception as e:
         return f"Error reading data folder: {str(e)}"
 
-# -----------------------------
-# Tool: List LAS files
-# -----------------------------
-@tool
-def list_las_files() -> str:
-    """List LAS files available in the data folder."""
-    return _list_las_files()
 
-def _list_curves(filename: str) -> str:
+# -----------------------------
+# Tool: List curves from a LAS file
+# -----------------------------
+@tool(args_schema=LASInfoInput)
+def list_curves(filename: str) -> str:
     """List curves available in a given LAS file inside the data folder."""
     file_path = os.path.join(PATHS["data_folder"], filename)
     if not os.path.isfile(file_path):
@@ -121,15 +117,12 @@ def _list_curves(filename: str) -> str:
     except Exception as e:
         return f"Error reading curves: {str(e)}"
 
+
 # -----------------------------
-# Tool: List curves from a LAS file
+# Tool: Get LAS file info
 # -----------------------------
 @tool(args_schema=LASInfoInput)
-def list_curves(filename: str) -> str:
-    """List curves available in a given LAS file inside the data folder."""
-    return _list_curves(filename)
-
-def _get_las_info(filename: str) -> str:
+def get_las_info(filename: str) -> str:
     """Get basic information about a LAS file."""
     file_path = os.path.join(PATHS["data_folder"], filename)
     if not os.path.isfile(file_path):
@@ -155,18 +148,21 @@ def _get_las_info(filename: str) -> str:
     except Exception as e:
         return f"Error reading LAS file: {str(e)}"
 
-# -----------------------------
-# Tool: Get LAS file info
-# -----------------------------
-@tool(args_schema=LASInfoInput)
-def get_las_info(filename: str) -> str:
-    """Get basic information about a LAS file."""
-    return _get_las_info(filename)
 
-def _mcp_process_las(filename: str, operation: str) -> str:
+# -----------------------------
+# MCP Tool: Process LAS with MCP server
+# -----------------------------
+@tool
+def mcp_process_las(filename: str, operation: str) -> str:
     """
-    Process a LAS file using MCP server tools.
-    Available operations: 'basic_stats', 'quality_check', 'normalize'
+    Process a LAS file using MCP operations.
+    
+    Args:
+        filename: Name of LAS file in data folder (e.g., 'sample_well.las')
+        operation: Operation to perform - use 'basic_stats', 'quality_check', or 'normalize'
+    
+    Returns:
+        String with operation results
     """
     file_path = os.path.join(PATHS["data_folder"], filename)
     if not os.path.isfile(file_path):
@@ -218,31 +214,18 @@ def _mcp_process_las(filename: str, operation: str) -> str:
             norm_info += f"Normalized file saved as {output_filename}"
             return norm_info
         
-        # This should never be reached due to the operation check above
         return f"Error: Unhandled operation '{operation}'"
     
     except Exception as e:
         return f"Error processing LAS file: {str(e)}"
 
-# -----------------------------
-# MCP Tool: Process LAS with MCP server
-# -----------------------------
-@tool
-def mcp_process_las(filename: str, operation: str) -> str:
-    """
-    Process a LAS file using MCP operations. 
-    
-    Args:
-        filename: Name of LAS file in data folder (e.g., 'sample_well.las')
-        operation: Operation to perform - use 'basic_stats', 'quality_check', or 'normalize'
-    
-    Returns:
-        String with operation results
-    """
-    return _mcp_process_las(filename, operation)
 
-def _mcp_rescue_las(filename: str) -> str:
-    """Attempt to fix common issues in a LAS file."""
+# -----------------------------
+# MCP Tool: LAS file rescue (fix common issues)
+# -----------------------------
+@tool(args_schema=LASInfoInput)
+def mcp_rescue_las(filename: str) -> str:
+    """Attempt to fix common issues in a LAS file. Provide the filename in data folder."""
     file_path = os.path.join(PATHS["data_folder"], filename)
     if not os.path.isfile(file_path):
         return f"Error: File '{filename}' not found in data folder."
@@ -286,53 +269,39 @@ def _mcp_rescue_las(filename: str) -> str:
     except Exception as e:
         return f"Error rescuing LAS file: {str(e)}"
 
-# -----------------------------
-# MCP Tool: LAS file rescue (fix common issues)
-# -----------------------------
-@tool(args_schema=LASInfoInput)
-def mcp_rescue_las(filename: str) -> str:
-    """Attempt to fix common issues in a LAS file. Provide the filename in data folder."""
-    return _mcp_rescue_las(filename)
-
 def initialize_agent():
     """Initialize the LangChain agent with tools."""
-    try:
-        # Note: In a real environment, you would need Ollama running
-        # For now, we'll create a mock LLM or handle the connection gracefully
-        llm = ChatOllama(
-            model=LLM_CONFIG["model"],
-            temperature=LLM_CONFIG["temperature"],
-            base_url=LLM_CONFIG["base_url"],
-            timeout=LLM_CONFIG["timeout"]
-        )
+    llm = ChatOllama(
+        model=LLM_CONFIG["model"],
+        temperature=LLM_CONFIG["temperature"],
+        base_url=LLM_CONFIG["base_url"],
+        timeout=LLM_CONFIG["timeout"]
+    )
 
-        tools = [
-            las_create_plot, 
-            list_las_files, 
-            list_curves, 
-            get_las_info,
-            mcp_process_las,
-            mcp_rescue_las
-        ]
+    tools = [
+        las_create_plot, 
+        list_las_files, 
+        list_curves, 
+        get_las_info,
+        mcp_process_las,
+        mcp_rescue_las
+    ]
 
-        # Get the ReAct prompt
-        prompt = hub.pull(AGENT_CONFIG["react_prompt"])
+    # Get the ReAct prompt
+    prompt = hub.pull(AGENT_CONFIG["react_prompt"])
 
-        # Create the agent
-        agent = create_react_agent(llm, tools, prompt)
+    # Create the agent
+    agent = create_react_agent(llm, tools, prompt)
 
-        agent_executor = AgentExecutor(
-            agent=agent,
-            tools=tools,
-            handle_parsing_errors=AGENT_CONFIG["handle_parsing_errors"],
-            verbose=AGENT_CONFIG["verbose"],
-            max_iterations=AGENT_CONFIG["max_iterations"]
-        )
-        
-        return agent_executor
-    except Exception as e:
-        logger.error(f"Failed to initialize agent: {str(e)}")
-        return None
+    agent_executor = AgentExecutor(
+        agent=agent,
+        tools=tools,
+        handle_parsing_errors=AGENT_CONFIG["handle_parsing_errors"],
+        verbose=AGENT_CONFIG["verbose"],
+        max_iterations=AGENT_CONFIG["max_iterations"]
+    )
+    
+    return agent_executor
 
 def main():
     """Main CLI loop."""
@@ -345,31 +314,20 @@ def main():
         print(f"No LAS files found in {PATHS['data_folder']} folder.")
         print("Please add some sample LAS files to test the functionality.")
     
-    try:
-        agent_executor = initialize_agent()
-        if agent_executor is None:
-            print("Warning: Could not connect to Ollama. Running in mock mode.")
-            print("To use the full agent functionality, please ensure Ollama is running.")
-            agent_executor = None
-    except Exception as e:
-        print(f"Warning: Agent initialization failed: {str(e)}")
-        print("Running in basic mode without LLM agent.")
-        agent_executor = None
+    # Initialize the agent - this will raise an exception if Ollama is not available
+    agent_executor = initialize_agent()
     
     print("\n" + "="*60)
     print("LAS File Agent with MCP Tools is ready!")
     print("="*60)
-    print("Available commands:")
-    print("- 'list files' or 'show files' - List LAS files in data folder")
-    print("- 'info <filename>' - Get information about a LAS file")
-    print("- 'curves <filename>' - List curves in a LAS file")
-    print("- 'plot <filename> <curve>' - Create a plot for a curve")
-    print("- 'stats <filename>' - Get basic statistics")
-    print("- 'quality <filename>' - Check data quality")
-    print("- 'normalize <filename>' - Normalize curve data")
-    print("- 'rescue <filename>' - Fix problematic LAS file")
-    print("- 'help' - Show this help message")
-    print("- 'exit' or 'quit' - Exit the program")
+    print("Ask me anything about LAS files or use natural language queries like:")
+    print("- 'What LAS files are available?'")
+    print("- 'Show me information about sample_well.las'")
+    print("- 'Create a gamma ray plot for sample_well.las'")
+    print("- 'What curves are in the file?'")
+    print("- 'Calculate basic statistics'")
+    print("- 'Check data quality'")
+    print("- Type 'exit' or 'quit' to exit")
     print("="*60)
     
     while True:
@@ -379,65 +337,15 @@ def main():
                 print("Exiting LAS File Agent. Goodbye!")
                 break
             
-            if user_input.lower() in ['help', '?']:
-                print("\nAvailable commands:")
-                print("- list files - List LAS files in data folder")
-                print("- info <filename> - Get information about a LAS file")
-                print("- curves <filename> - List curves in a LAS file")
-                print("- plot <filename> <curve> - Create a plot for a curve")
-                print("- stats <filename> - Get basic statistics")
-                print("- quality <filename> - Check data quality")
-                print("- normalize <filename> - Normalize curve data")
-                print("- rescue <filename> - Fix problematic LAS file")
+            if not user_input:
                 continue
             
-            # Handle basic commands without agent
-            if user_input.lower() in ['list files', 'show files', 'list']:
-                result = _list_las_files()
-                print(f"Agent: {result}")
-                continue
-            
-            # For complex queries, use the agent if available
-            if agent_executor:
-                try:
-                    response = agent_executor.invoke({"input": user_input})
-                    print(f"Agent: {response['output']}")
-                except Exception as e:
-                    print(f"Agent error: {str(e)}")
-                    print("Try a simpler command or check if Ollama is running.")
-            else:
-                # Basic command parsing without agent
-                parts = user_input.split()
-                if len(parts) >= 2:
-                    command = parts[0].lower()
-                    filename = parts[1]
-                    
-                    if command == 'info':
-                        result = _get_las_info(filename)
-                        print(f"Agent: {result}")
-                    elif command == 'curves':
-                        result = _list_curves(filename)
-                        print(f"Agent: {result}")
-                    elif command == 'plot' and len(parts) >= 3:
-                        curve_name = parts[2]
-                        result = _las_create_plot(filename, curve_name)
-                        print(f"Agent: {result}")
-                    elif command == 'stats':
-                        result = _mcp_process_las(filename, 'basic_stats')
-                        print(f"Agent: {result}")
-                    elif command == 'quality':
-                        result = _mcp_process_las(filename, 'quality_check')
-                        print(f"Agent: {result}")
-                    elif command == 'normalize':
-                        result = _mcp_process_las(filename, 'normalize')
-                        print(f"Agent: {result}")
-                    elif command == 'rescue':
-                        result = _mcp_rescue_las(filename)
-                        print(f"Agent: {result}")
-                    else:
-                        print("Agent: Command not recognized. Type 'help' for available commands.")
-                else:
-                    print("Agent: Please provide a valid command. Type 'help' for available commands.")
+            try:
+                response = agent_executor.invoke({"input": user_input})
+                print(f"Agent: {response['output']}")
+            except Exception as e:
+                print(f"Agent error: {str(e)}")
+                print("Please ensure Ollama is running and try again.")
                     
         except KeyboardInterrupt:
             print("\nExiting LAS File Agent. Goodbye!")
