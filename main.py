@@ -45,7 +45,7 @@ class LASInfoInput(BaseModel):
 # -----------------------------
 # Tool: Create LAS curve plot
 # -----------------------------
-@tool(args_schema=LASPlotInput)
+@tool
 def las_create_plot(filename: str, curve_name: str) -> str:
     """Create a plot image for a specific curve from a LAS file in the data folder.
     
@@ -124,7 +124,7 @@ def list_las_files() -> str:
 # -----------------------------
 # Tool: List curves from a LAS file
 # -----------------------------
-@tool(args_schema=LASInfoInput)
+@tool
 def list_curves(filename: str) -> str:
     """List all curves (data channels) available in a specific LAS file.
     
@@ -151,7 +151,7 @@ def list_curves(filename: str) -> str:
 # -----------------------------
 # Tool: Get LAS file info
 # -----------------------------
-@tool(args_schema=LASInfoInput)
+@tool
 def get_las_info(filename: str) -> str:
     """Get detailed information about a LAS file including version, curves, and well data.
     
@@ -265,7 +265,7 @@ def mcp_process_las(filename: str, operation: str) -> str:
 # -----------------------------
 # MCP Tool: LAS file rescue (fix common issues)
 # -----------------------------
-@tool(args_schema=LASInfoInput)
+@tool
 def mcp_rescue_las(filename: str) -> str:
     """Attempt to fix common issues and errors in a LAS file.
     
