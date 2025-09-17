@@ -47,7 +47,18 @@ class LASInfoInput(BaseModel):
 # -----------------------------
 @tool(args_schema=LASPlotInput)
 def las_create_plot(filename: str, curve_name: str) -> str:
-    """Create a plot image for the given curve from a LAS file in data folder."""
+    """Create a plot image for a specific curve from a LAS file in the data folder.
+    
+    Use this tool to generate depth plots for well log curves.
+    
+    Args:
+        filename: Name of the LAS file in data folder (e.g., "sample_well.las")
+        curve_name: Name of the curve to plot (e.g., "GR", "RT", "NPHI")
+    
+    Example usage:
+        Action: las_create_plot
+        Action Input: {"filename": "sample_well.las", "curve_name": "GR"}
+    """
     file_path = os.path.join(PATHS["data_folder"], filename)
     if not os.path.isfile(file_path):
         return f"Error: File '{filename}' not found in data folder."
@@ -91,7 +102,14 @@ def las_create_plot(filename: str, curve_name: str) -> str:
 # -----------------------------
 @tool
 def list_las_files() -> str:
-    """List LAS files available in the data folder."""
+    """List all LAS files available in the data folder.
+    
+    Use this tool to see what LAS files are available for processing.
+    
+    Example usage:
+        Action: list_las_files
+        Action Input: {}
+    """
     try:
         files = [f for f in os.listdir(PATHS["data_folder"]) if f.endswith(".las")]
         if not files:
@@ -106,7 +124,17 @@ def list_las_files() -> str:
 # -----------------------------
 @tool(args_schema=LASInfoInput)
 def list_curves(filename: str) -> str:
-    """List curves available in a given LAS file inside the data folder."""
+    """List all curves (data channels) available in a specific LAS file.
+    
+    Use this tool to see what well log curves are in a LAS file.
+    
+    Args:
+        filename: Name of the LAS file in data folder (e.g., "sample_well.las")
+    
+    Example usage:
+        Action: list_curves
+        Action Input: {"filename": "sample_well.las"}
+    """
     file_path = os.path.join(PATHS["data_folder"], filename)
     if not os.path.isfile(file_path):
         return f"Error: File '{filename}' not found in data folder."
@@ -123,7 +151,17 @@ def list_curves(filename: str) -> str:
 # -----------------------------
 @tool(args_schema=LASInfoInput)
 def get_las_info(filename: str) -> str:
-    """Get basic information about a LAS file."""
+    """Get detailed information about a LAS file including version, curves, and well data.
+    
+    Use this tool to get comprehensive information about a LAS file.
+    
+    Args:
+        filename: Name of the LAS file in data folder (e.g., "sample_well.las")
+    
+    Example usage:
+        Action: get_las_info
+        Action Input: {"filename": "sample_well.las"}
+    """
     file_path = os.path.join(PATHS["data_folder"], filename)
     if not os.path.isfile(file_path):
         return f"Error: File '{filename}' not found in data folder."
@@ -154,15 +192,17 @@ def get_las_info(filename: str) -> str:
 # -----------------------------
 @tool
 def mcp_process_las(filename: str, operation: str) -> str:
-    """
-    Process a LAS file using MCP operations.
+    """Process a LAS file using MCP operations for statistics, quality checks, or normalization.
+    
+    Use this tool to analyze LAS file data or perform data processing operations.
     
     Args:
-        filename: Name of LAS file in data folder (e.g., 'sample_well.las')
-        operation: Operation to perform - use 'basic_stats', 'quality_check', or 'normalize'
+        filename: Name of LAS file in data folder (e.g., "sample_well.las")
+        operation: Operation to perform - must be "basic_stats", "quality_check", or "normalize"
     
-    Returns:
-        String with operation results
+    Example usage:
+        Action: mcp_process_las
+        Action Input: {"filename": "sample_well.las", "operation": "basic_stats"}
     """
     file_path = os.path.join(PATHS["data_folder"], filename)
     if not os.path.isfile(file_path):
@@ -225,7 +265,17 @@ def mcp_process_las(filename: str, operation: str) -> str:
 # -----------------------------
 @tool(args_schema=LASInfoInput)
 def mcp_rescue_las(filename: str) -> str:
-    """Attempt to fix common issues in a LAS file. Provide the filename in data folder."""
+    """Attempt to fix common issues and errors in a LAS file.
+    
+    Use this tool to repair problematic LAS files with encoding or format issues.
+    
+    Args:
+        filename: Name of the LAS file in data folder (e.g., "sample_well.las")
+    
+    Example usage:
+        Action: mcp_rescue_las
+        Action Input: {"filename": "sample_well.las"}
+    """
     file_path = os.path.join(PATHS["data_folder"], filename)
     if not os.path.isfile(file_path):
         return f"Error: File '{filename}' not found in data folder."
