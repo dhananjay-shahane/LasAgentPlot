@@ -54,9 +54,12 @@ class LASPlotGenerator:
         
         try:
             curve_data = las[curve_name]
-            depth = las['DEPT'] if 'DEPT' in las else las.index
+            available_curves = [c.mnemonic for c in las.curves]
+            depth = np.asarray(las['DEPT'] if 'DEPT' in available_curves else las.index, dtype=float)
             
-            # Handle NaN values
+            # Handle NaN values safely
+            curve_data = np.asarray(curve_data, dtype=float)
+            depth = np.asarray(depth, dtype=float)
             mask = ~np.isnan(curve_data)
             
             plt.figure(figsize=PLOT_CONFIG["figure_size"], dpi=PLOT_CONFIG["dpi"])
@@ -104,9 +107,12 @@ class LASPlotGenerator:
         
         try:
             gamma_data = las[curve_found]
-            depth = las['DEPT'] if 'DEPT' in las else las.index
+            available_curves = [c.mnemonic for c in las.curves]
+            depth = np.asarray(las['DEPT'] if 'DEPT' in available_curves else las.index, dtype=float)
             
-            # Handle NaN values
+            # Handle NaN values safely
+            gamma_data = np.asarray(gamma_data, dtype=float)
+            depth = np.asarray(depth, dtype=float)
             mask = ~np.isnan(gamma_data)
             
             plt.figure(figsize=(8, 10), dpi=PLOT_CONFIG["dpi"])
@@ -154,7 +160,8 @@ class LASPlotGenerator:
             return f"No valid curves found. Requested: {', '.join(curve_names)}. Available: {', '.join(available_curves)}"
         
         try:
-            depth = las['DEPT'] if 'DEPT' in las else las.index
+            available_curves = [c.mnemonic for c in las.curves]
+            depth = np.asarray(las['DEPT'] if 'DEPT' in available_curves else las.index, dtype=float)
             
             if subplot_layout:
                 # Create subplots for each curve
@@ -163,7 +170,7 @@ class LASPlotGenerator:
                     axes = [axes]
                 
                 for i, curve_name in enumerate(valid_curves):
-                    curve_data = las[curve_name]
+                    curve_data = np.asarray(las[curve_name], dtype=float)
                     mask = ~np.isnan(curve_data)
                     
                     axes[i].plot(curve_data[mask], depth[mask], linewidth=1.5)
@@ -184,7 +191,7 @@ class LASPlotGenerator:
                 colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown']
                 
                 for i, curve_name in enumerate(valid_curves):
-                    curve_data = las[curve_name]
+                    curve_data = np.asarray(las[curve_name], dtype=float)
                     mask = ~np.isnan(curve_data)
                     color = colors[i % len(colors)]
                     
@@ -232,13 +239,14 @@ class LASPlotGenerator:
             return f"No resistivity curves found. Tried: {', '.join(resistivity_names)}. Available: {', '.join(available_curves)}"
         
         try:
-            depth = las['DEPT'] if 'DEPT' in las else las.index
+            available_curves = [c.mnemonic for c in las.curves]
+            depth = np.asarray(las['DEPT'] if 'DEPT' in available_curves else las.index, dtype=float)
             
             plt.figure(figsize=(10, 10), dpi=PLOT_CONFIG["dpi"])
             colors = ['blue', 'red', 'green', 'orange']
             
             for i, curve_name in enumerate(found_curves):
-                curve_data = las[curve_name]
+                curve_data = np.asarray(las[curve_name], dtype=float)
                 mask = ~np.isnan(curve_data) & (curve_data > 0)  # Remove negative values for log scale
                 
                 if np.any(mask):

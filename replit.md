@@ -58,3 +58,29 @@ The system is built around a LangChain ReAct agent that can interpret natural la
 - **Multiple Encoding Support**: Handles various text encodings commonly found in LAS files (utf-8, latin-1, cp1252)
 
 The architecture is designed to be extensible, allowing for easy addition of new LAS processing tools and integration with additional external services or databases as needed.
+
+## Replit Environment Setup
+
+### Recent Changes (September 17, 2025)
+
+**Import Setup Completed**: Successfully configured the LAS File Processing and Plotting Agent to run in the Replit environment.
+
+**Key Configuration Changes**:
+- **Dependencies**: Installed all required Python dependencies using `uv` package manager from `pyproject.toml`
+- **Ollama Configuration**: Updated `agent_config.py` to use localhost:11434 for local Ollama server
+- **Error Handling**: Enhanced error handling to gracefully fallback when Ollama is unavailable
+- **Plotting Fixes**: Fixed numpy array comparison issues in plot generation scripts
+- **Directory Structure**: Created required output folder for generated plots
+- **Workflow Setup**: Configured "LAS CLI Agent" workflow to run the main application
+
+**Working Features**:
+- Standalone plot generation script works correctly (`python scripts/plot_generator.py`)
+- All plot types functional: depth plots, gamma ray plots, multi-curve plots
+- Sample data processing with `data/sample_well.las`
+- Generated plots saved to `output/` directory
+
+**Usage**:
+1. **Interactive Mode**: Run the workflow "LAS CLI Agent" for full agent interaction (requires Ollama)
+2. **Standalone Mode**: Use `python scripts/plot_generator.py sample_well.las <plot_type> [curve_name]` for direct plotting
+
+**Dependencies Installed**: langchain, langchain-community, langchain-core, langchain-ollama, lasio, matplotlib, numpy, pydantic, and all supporting libraries.

@@ -70,9 +70,11 @@ def las_create_plot(filename: str, curve_name: str) -> str:
             return f"Error: Curve '{curve_name}' not found in '{filename}'. Available curves: {', '.join(available_curves)}"
 
         curve_data = las[curve_name]
-        depth = las['DEPT'] if 'DEPT' in las else las.index
+        depth = las['DEPT'] if 'DEPT' in available_curves else las.index
 
         # Handle NaN values safely
+        curve_data = np.asarray(curve_data, dtype=float)
+        depth = np.asarray(depth, dtype=float)
         mask = ~np.isnan(curve_data)
         plt.figure(figsize=PLOT_CONFIG["figure_size"], dpi=PLOT_CONFIG["dpi"])
         plt.plot(curve_data[mask], depth[mask])
@@ -341,8 +343,28 @@ def initialize_agent():
         mcp_rescue_las
     ]
 
-    # Get the ReAct prompt
-    prompt = hub.pull(AGENT_CONFIG["react_prompt"])
+    # Get the ReAct prompt with fallback
+    try:
+        prompt = hub.pull(AGENT_CONFIG["react_prompt"])
+    except Exception as e:
+        logger.warning(f"Failed to pull ReAct prompt from hub: {str(e)}, using fallback prompt")
+        # Fallback ReAct prompt for offline use
+        from langchain_core.prompts import PromptTemplate
+        prompt = PromptTemplate.from_template(
+            "Answer the following questions as best you can. You have access to the following tools:\n\n{tools}\n\n"
+            "Use the following format:\n\n"
+            "Question: the input question you must answer\n"
+            "Thought: you should always think about what to do\n"
+            "Action: the action to take, should be one of [{tool_names}]\n"
+            "Action Input: the input to the action\n"
+            "Observation: the result of the action\n"
+            "... (this Thought/Action/Action Input/Observation can repeat N times)\n"
+            "Thought: I now know the final answer\n"
+            "Final Answer: the final answer to the original input question\n\n"
+            "Begin!\n\n"
+            "Question: {input}\n"
+            "Thought: {agent_scratchpad}"
+        )
 
     # Create the agent
     agent = create_react_agent(llm, tools, prompt)
