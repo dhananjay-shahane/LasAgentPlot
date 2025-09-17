@@ -20,7 +20,7 @@ plt.switch_backend('Agg')
 class LASPlotGenerator:
     """Class for generating various types of LAS file plots."""
     
-    def __init__(self, data_folder: str = None, output_folder: str = None):
+    def __init__(self, data_folder: Optional[str] = None, output_folder: Optional[str] = None):
         self.data_folder = data_folder or PATHS["data_folder"]
         self.output_folder = output_folder or PATHS["output_folder"]
         
@@ -42,7 +42,7 @@ class LASPlotGenerator:
             return None
     
     def create_depth_plot(self, filename: str, curve_name: str, 
-                         title: str = None, xlabel: str = None) -> str:
+                         title: Optional[str] = None, xlabel: Optional[str] = None) -> str:
         """Create a depth vs curve plot."""
         las = self.load_las_file(filename)
         if las is None:

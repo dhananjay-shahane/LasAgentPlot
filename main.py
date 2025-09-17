@@ -42,10 +42,9 @@ class LASInfoInput(BaseModel):
     filename: str = Field(description="LAS file name in data folder")
 
 # -----------------------------
-# Tool: Create LAS curve plot
+# Core Functions (without decorators)
 # -----------------------------
-@tool(args_schema=LASPlotInput)
-def las_create_plot(filename: str, curve_name: str) -> str:
+def _las_create_plot(filename: str, curve_name: str) -> str:
     """Create a plot image for the given curve from a LAS file in data folder."""
     file_path = os.path.join(PATHS["data_folder"], filename)
     if not os.path.isfile(file_path):
@@ -85,10 +84,14 @@ def las_create_plot(filename: str, curve_name: str) -> str:
         return f"Error: Failed to create plot: {str(e)}"
 
 # -----------------------------
-# Tool: List LAS files
+# Tool: Create LAS curve plot
 # -----------------------------
-@tool
-def list_las_files() -> str:
+@tool(args_schema=LASPlotInput)
+def las_create_plot(filename: str, curve_name: str) -> str:
+    """Create a plot image for the given curve from a LAS file in data folder."""
+    return _las_create_plot(filename, curve_name)
+
+def _list_las_files() -> str:
     """List LAS files available in the data folder."""
     try:
         files = [f for f in os.listdir(PATHS["data_folder"]) if f.endswith(".las")]
@@ -99,10 +102,14 @@ def list_las_files() -> str:
         return f"Error reading data folder: {str(e)}"
 
 # -----------------------------
-# Tool: List curves from a LAS file
+# Tool: List LAS files
 # -----------------------------
-@tool(args_schema=LASInfoInput)
-def list_curves(filename: str) -> str:
+@tool
+def list_las_files() -> str:
+    """List LAS files available in the data folder."""
+    return _list_las_files()
+
+def _list_curves(filename: str) -> str:
     """List curves available in a given LAS file inside the data folder."""
     file_path = os.path.join(PATHS["data_folder"], filename)
     if not os.path.isfile(file_path):
@@ -115,10 +122,14 @@ def list_curves(filename: str) -> str:
         return f"Error reading curves: {str(e)}"
 
 # -----------------------------
-# Tool: Get LAS file info
+# Tool: List curves from a LAS file
 # -----------------------------
 @tool(args_schema=LASInfoInput)
-def get_las_info(filename: str) -> str:
+def list_curves(filename: str) -> str:
+    """List curves available in a given LAS file inside the data folder."""
+    return _list_curves(filename)
+
+def _get_las_info(filename: str) -> str:
     """Get basic information about a LAS file."""
     file_path = os.path.join(PATHS["data_folder"], filename)
     if not os.path.isfile(file_path):
@@ -127,7 +138,7 @@ def get_las_info(filename: str) -> str:
     try:
         las = lasio.read(file_path)
         info = f"Information for {filename}:\n"
-        info += f"Version: {las.version[0]}.{las.version[1]}\n"
+        info += f"Version: {getattr(las, 'version', 'N/A')}\n"
         info += f"Wrap: {getattr(las, 'wrap', 'N/A')}\n"
         info += f"Number of curves: {len(las.curves)}\n"
         info += f"Data shape: {las.data.shape}\n"
@@ -145,10 +156,14 @@ def get_las_info(filename: str) -> str:
         return f"Error reading LAS file: {str(e)}"
 
 # -----------------------------
-# MCP Tool: Process LAS with MCP server
+# Tool: Get LAS file info
 # -----------------------------
-@tool
-def mcp_process_las(filename: str, operation: str) -> str:
+@tool(args_schema=LASInfoInput)
+def get_las_info(filename: str) -> str:
+    """Get basic information about a LAS file."""
+    return _get_las_info(filename)
+
+def _mcp_process_las(filename: str, operation: str) -> str:
     """
     Process a LAS file using MCP server tools.
     Available operations: 'basic_stats', 'quality_check', 'normalize'
@@ -210,10 +225,23 @@ def mcp_process_las(filename: str, operation: str) -> str:
         return f"Error processing LAS file: {str(e)}"
 
 # -----------------------------
-# MCP Tool: LAS file rescue (fix common issues)
+# MCP Tool: Process LAS with MCP server
 # -----------------------------
-@tool(args_schema=LASInfoInput)
-def mcp_rescue_las(filename: str) -> str:
+@tool
+def mcp_process_las(filename: str, operation: str) -> str:
+    """
+    Process a LAS file using MCP operations. 
+    
+    Args:
+        filename: Name of LAS file in data folder (e.g., 'sample_well.las')
+        operation: Operation to perform - use 'basic_stats', 'quality_check', or 'normalize'
+    
+    Returns:
+        String with operation results
+    """
+    return _mcp_process_las(filename, operation)
+
+def _mcp_rescue_las(filename: str) -> str:
     """Attempt to fix common issues in a LAS file."""
     file_path = os.path.join(PATHS["data_folder"], filename)
     if not os.path.isfile(file_path):
@@ -257,6 +285,14 @@ def mcp_rescue_las(filename: str) -> str:
             
     except Exception as e:
         return f"Error rescuing LAS file: {str(e)}"
+
+# -----------------------------
+# MCP Tool: LAS file rescue (fix common issues)
+# -----------------------------
+@tool(args_schema=LASInfoInput)
+def mcp_rescue_las(filename: str) -> str:
+    """Attempt to fix common issues in a LAS file. Provide the filename in data folder."""
+    return _mcp_rescue_las(filename)
 
 def initialize_agent():
     """Initialize the LangChain agent with tools."""
@@ -357,7 +393,7 @@ def main():
             
             # Handle basic commands without agent
             if user_input.lower() in ['list files', 'show files', 'list']:
-                result = list_las_files()
+                result = _list_las_files()
                 print(f"Agent: {result}")
                 continue
             
@@ -377,26 +413,26 @@ def main():
                     filename = parts[1]
                     
                     if command == 'info':
-                        result = get_las_info(filename)
+                        result = _get_las_info(filename)
                         print(f"Agent: {result}")
                     elif command == 'curves':
-                        result = list_curves(filename)
+                        result = _list_curves(filename)
                         print(f"Agent: {result}")
                     elif command == 'plot' and len(parts) >= 3:
                         curve_name = parts[2]
-                        result = las_create_plot(filename, curve_name)
+                        result = _las_create_plot(filename, curve_name)
                         print(f"Agent: {result}")
                     elif command == 'stats':
-                        result = mcp_process_las(filename, 'basic_stats')
+                        result = _mcp_process_las(filename, 'basic_stats')
                         print(f"Agent: {result}")
                     elif command == 'quality':
-                        result = mcp_process_las(filename, 'quality_check')
+                        result = _mcp_process_las(filename, 'quality_check')
                         print(f"Agent: {result}")
                     elif command == 'normalize':
-                        result = mcp_process_las(filename, 'normalize')
+                        result = _mcp_process_las(filename, 'normalize')
                         print(f"Agent: {result}")
                     elif command == 'rescue':
-                        result = mcp_rescue_las(filename)
+                        result = _mcp_rescue_las(filename)
                         print(f"Agent: {result}")
                     else:
                         print("Agent: Command not recognized. Type 'help' for available commands.")
