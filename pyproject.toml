@@ -1,0 +1,16 @@
+[project]
+name = "repl-nix-workspace"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "langchain>=0.3.27",
+    "langchain-community>=0.3.29",
+    "langchain-core>=0.3.76",
+    "langchain-ollama>=0.3.8",
+    "lasio>=0.32",
+    "matplotlib>=3.10.6",
+    "mcp>=1.14.0",
+    "numpy>=2.3.3",
+    "pydantic>=2.11.9",
+]
