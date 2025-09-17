@@ -7,7 +7,7 @@ Agent Configuration File for LAS File Processing CLI
 LLM_CONFIG = {
     "model": "llama3.2:1b",
     "temperature": 0.3,
-    "base_url": "http://localhost:11434",
+    "base_url": "https://4969d13b9a21.ngrok-free.app",
     "timeout": 120
 }
 
