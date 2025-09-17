@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+"""
+LAS File Processing and Plotting Agent with MCP Tools
+"""
+
+import os
+import base64
+import matplotlib.pyplot as plt
+import numpy as np
+import lasio
+from pydantic import BaseModel, Field
+from langchain_community.chat_models import ChatOllama
+from langchain_core.tools import tool
+from langchain.agents import AgentExecutor, create_react_agent
+from langchain import hub
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+# Ensure required directories exist
+os.makedirs("data", exist_ok=True)
+os.makedirs("output", exist_ok=True)
+
+# -----------------------------
+# Pydantic input models
+# -----------------------------
+class LASPlotInput(BaseModel):
+    filename: str = Field(description="LAS file name in data folder")
+    curve_name: str = Field(description="Name of curve to plot from LAS file")
+
+class LASInfoInput(BaseModel):
+    filename: str = Field(description="LAS file name in data folder")
+
+# -----------------------------
+# Tool: Create LAS curve plot
+# -----------------------------
+@tool(args_schema=LASPlotInput)
+def las_create_plot(filename: str, curve_name: str) -> str:
+    """Create a plot image for the given curve from a LAS file in data folder."""
+    file_path = os.path.join("data", filename)
+    if not os.path.isfile(file_path):
+        return f"Error: File '{filename}' not found in data folder."
+
+    try:
+        las = lasio.read(file_path)
+        available_curves = [curve.mnemonic for curve in las.curves]
+        if curve_name not in available_curves:
+            return f"Error: Curve '{curve_name}' not found in '{filename}'. Available curves: {', '.join(available_curves)}"
+
+        curve_data = las[curve_name]
+        depth = las['DEPT'] if 'DEPT' in las else las.index  # Use DEPT curve or index as depth
+
+        # Handle NaN values safely
+        mask = ~np.isnan(curve_data)
+        plt.figure(figsize=(6, 8))
+        plt.plot(curve_data[mask], depth[mask])
+        plt.gca().invert_yaxis()
+        plt.xlabel(curve_name)
+        plt.ylabel("Depth")
+        plt.title(f"{curve_name} vs Depth from {filename}")
+        plt.grid(True)
+
+        output_path = os.path.join("output", f"{filename}_{curve_name}.png")
+        plt.savefig(output_path)
+        plt.close()
+
+        return f"Success: Plot saved to {output_path}"
+    except Exception as e:
+        return f"Error: Failed to create plot: {str(e)}"
+
+# -----------------------------
+# Tool: List LAS files
+# -----------------------------
+@tool
+def list_las_files() -> str:
+    """List LAS files available in the data folder."""
+    try:
+        files = [f for f in os.listdir("data") if f.endswith(".las")]
+        if not files:
+            return "No LAS files found in data folder."
+        return f"Available LAS files: {', '.join(files)}"
+    except Exception as e:
+        return f"Error reading data folder: {str(e)}"
+
+# -----------------------------
+# Tool: List curves from a LAS file
+# -----------------------------
+@tool(args_schema=LASInfoInput)
+def list_curves(filename: str) -> str:
+    """List curves available in a given LAS file inside the data folder."""
+    file_path = os.path.join("data", filename)
+    if not os.path.isfile(file_path):
+        return f"Error: File '{filename}' not found in data folder."
+    try:
+        las = lasio.read(file_path)
+        curves = [curve.mnemonic for curve in las.curves]
+        return f"Available curves in {filename}: {', '.join(curves)}"
+    except Exception as e:
+        return f"Error reading curves: {str(e)}"
+
+# -----------------------------
+# Tool: Get LAS file info
+# -----------------------------
+@tool(args_schema=LASInfoInput)
+def get_las_info(filename: str) -> str:
+    """Get basic information about a LAS file."""
+    file_path = os.path.join("data", filename)
+    if not os.path.isfile(file_path):
+        return f"Error: File '{filename}' not found in data folder."
+    
+    try:
+        las = lasio.read(file_path)
+        info = f"Information for {filename}:\n"
+        info += f"Version: {las.version[0]}.{las.version[1]}\n"
+        info += f"Wrap: {las.wrap}\n"
+        info += f"Number of curves: {len(las.curves)}\n"
+        info += f"Data shape: {las.data.shape}\n"
+        info += f"Start depth: {las.index[0]}\n"
+        info += f"End depth: {las.index[-1]}\n"
+        
+        # Add well information if available
+        if hasattr(las, 'well') and las.well:
+            info += "\nWell Information:\n"
+            for item in las.well:
+                info += f"{item.mnemonic}: {item.value} {item.unit}\n"
+                
+        return info
+    except Exception as e:
+        return f"Error reading LAS file: {str(e)}"
+
+# -----------------------------
+# MCP Tool: Process LAS with MCP server
+# -----------------------------
+@tool
+def mcp_process_las(filename: str, operation: str) -> str:
+    """
+    Process a LAS file using MCP server tools.
+    Available operations: 'basic_stats', 'quality_check', 'normalize'
+    """
+    file_path = os.path.join("data", filename)
+    if not os.path.isfile(file_path):
+        return f"Error: File '{filename}' not found in data folder."
+    
+    try:
+        # This is a placeholder for MCP server interaction
+        # In a real implementation, you would connect to an MCP server
+        # that provides LAS processing capabilities
+        
+        if operation == "basic_stats":
+            las = lasio.read(file_path)
+            stats_info = f"Basic statistics for {filename}:\n"
+            for curve in las.curves:
+                if curve.mnemonic != 'DEPT':
+                    curve_data = las[curve.mnemonic]
+                    valid_data = curve_data[~np.isnan(curve_data)]
+                    if len(valid_data) > 0:
+                        stats_info += f"{curve.mnemonic}: min={np.min(valid_data):.3f}, max={np.max(valid_data):.3f}, mean={np.mean(valid_data):.3f}\n"
+            return stats_info
+            
+        elif operation == "quality_check":
+            las = lasio.read(file_path)
+            quality_info = f"Quality check for {filename}:\n"
+            for curve in las.curves:
+                curve_data = las[curve.mnemonic]
+                nan_count = np.sum(np.isnan(curve_data))
+                percent_nan = (nan_count / len(curve_data)) * 100
+                quality_info += f"{curve.mnemonic}: {percent_nan:.1f}% missing data\n"
+            return quality_info
+            
+        elif operation == "normalize":
+            # Simple normalization example
+            las = lasio.read(file_path)
+            norm_info = f"Normalization applied to {filename}:\n"
+            for curve in las.curves:
+                if curve.mnemonic != 'DEPT':
+                    curve_data = las[curve.mnemonic]
+                    valid_data = curve_data[~np.isnan(curve_data)]
+                    if len(valid_data) > 0:
+                        min_val = np.min(valid_data)
+                        max_val = np.max(valid_data)
+                        if max_val > min_val:
+                            las[curve.mnemonic] = (curve_data - min_val) / (max_val - min_val)
+                            norm_info += f"{curve.mnemonic}: normalized to [0,1] range\n"
+            
+            # Save normalized LAS file
+            output_filename = f"normalized_{filename}"
+            output_path = os.path.join("data", output_filename)
+            las.write(output_path)
+            norm_info += f"Normalized file saved as {output_filename}"
+            return norm_info
+            
+        else:
+            return f"Error: Unknown operation '{operation}'. Available operations: 'basic_stats', 'quality_check', 'normalize'"
+            
+    except Exception as e:
+        return f"Error processing LAS file: {str(e)}"
+
+# -----------------------------
+# MCP Tool: LAS file rescue (fix common issues)
+# -----------------------------
+@tool(args_schema=LASInfoInput)
+def mcp_rescue_las(filename: str) -> str:
+    """Attempt to fix common issues in a LAS file."""
+    file_path = os.path.join("data", filename)
+    if not os.path.isfile(file_path):
+        return f"Error: File '{filename}' not found in data folder."
+    
+    try:
+        # Read the file with different encodings if needed
+        encodings = ['utf-8', 'latin-1', 'cp1252']
+        las = None
+        
+        for encoding in encodings:
+            try:
+                las = lasio.read(file_path, encoding=encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        
+        if las is None:
+            return "Error: Could not read LAS file with any known encoding."
+        
+        # Fix common issues
+        issues_fixed = []
+        
+        # Check for missing ~VERSION section
+        if not hasattr(las, 'version') or las.version is None:
+            las.version = [1.2, 'CWLS']
+            issues_fixed.append("Added missing version section")
+        
+        # Check for missing ~WELL section
+        if not hasattr(las, 'well') or las.well is None:
+            las.well = []
+            issues_fixed.append("Added missing well section")
+        
+        # Check for missing ~CURVE section
+        if not hasattr(las, 'curves') or las.curves is None:
+            return "Error: No curve information found in LAS file."
+        
+        # Save repaired file
+        rescue_filename = f"rescued_{filename}"
+        rescue_path = os.path.join("data", rescue_filename)
+        las.write(rescue_path)
+        
+        if issues_fixed:
+            return f"Rescued file saved as {rescue_filename}. Issues fixed: {', '.join(issues_fixed)}"
+        else:
+            return f"No issues found in {filename}. A copy was saved as {rescue_filename} for verification."
+            
+    except Exception as e:
+        return f"Error rescuing LAS file: {str(e)}"
+
+# -----------------------------
+# LangChain Agent Setup
+# -----------------------------
+llm = ChatOllama(model="llama3.2:1b", temperature=0.3, base_url="http://localhost:11434")
+
+tools = [
+    las_create_plot, 
+    list_las_files, 
+    list_curves, 
+    get_las_info,
+    mcp_process_las,
+    mcp_rescue_las
+]
+
+# Get the ReAct prompt
+prompt = hub.pull("hwchase17/react")
+
+# Create the agent
+agent = create_react_agent(llm, tools, prompt)
+
+agent_executor = AgentExecutor(
+    agent=agent,
+    tools=tools,
+    handle_parsing_errors=True,
+    verbose=True,
+    max_iterations=5  # Add iteration limit to prevent infinite loops
+)
+
+# -----------------------------
+# CLI Main Loop
+# -----------------------------
+def main():
+    print("LAS File Agent with MCP Tools is ready. Type 'exit' to quit.")
+    print("Available tools:")
+    print("- List LAS files in data folder")
+    print("- List curves in a LAS file")
+    print("- Get information about a LAS file")
+    print("- Create a depth plot for any curve")
+    print("- Process LAS file with MCP tools (basic_stats, quality_check, normalize)")
+    print("- Rescue a problematic LAS file")
+    
+    while True:
+        user_input = input("\nUser: ")
+        if user_input.strip().lower() == "exit":
+            print("Exiting.")
+            break
+        try:
+            response = agent_executor.invoke({"input": user_input})
+            print(f"Agent: {response['output']}")
+        except Exception as e:
+            print(f"Agent error: {str(e)}")
+
+if __name__ == "__main__":
+    main()
